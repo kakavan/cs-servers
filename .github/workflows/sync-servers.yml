@@ -1,0 +1,39 @@
+name: Sync server list
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"   # каждые 2 часа
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM: https://raw.githubusercontent.com/Caraekosiemah9ab/rawList/main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download upstream lists
+        run: |
+          mkdir -p upstream
+          curl -fsSL --retry 3 "$UPSTREAM/ms.txt"        -o upstream/ms.txt
+          curl -fsSL --retry 3 "$UPSTREAM/blacklist.txt" -o upstream/blacklist.txt
+
+      - name: Build v1/servers/cstrike
+        run: python3 scripts/build_list.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "server-list-bot"
+          git config user.email "server-list-bot@users.noreply.github.com"
+          git add upstream v1
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "sync server list"
+            git push
+          fi
